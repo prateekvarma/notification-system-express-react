@@ -1,11 +1,14 @@
+// notifications.controller.js
 const users = require('../models/users.model');
-const logs = require('../models/logs.model');
+const { SMSNotification } = require('./util/SMSNotification');
+const { EmailNotification } = require('./util/EmailNotification');
+const { PushNotification } = require('./util/PushNotification');
 
 function processNotification(req, res) {
   const { category, message } = req.body;
 
   // backend validation
-  if(!category || !message) {
+  if (!category || !message) {
     res.status(400).send({ success: false });
   }
 
@@ -15,17 +18,23 @@ function processNotification(req, res) {
   // "Send" notifications and log them
   recipients.forEach((recipient) => {
     recipient.channels.forEach((channel) => {
-      const log = {
-        id: logs.length + 1 || 1,
-        type: channel,
-        category,
-        message,
-        userName: recipient.name,
-        email: recipient.email,
-        time: new Date().toISOString(),
-      };
-      // interacting with real APIs to send notifications can go here
-      logs.push(log);
+      let notification;
+      switch (channel) {
+        case 'SMS':
+          notification = new SMSNotification(recipient, message, category);
+          break;
+        case 'Email':
+          notification = new EmailNotification(recipient, message, category);
+          break;
+        case 'Push':
+          notification = new PushNotification(recipient, message, category);
+          break;
+        default:
+          break;
+      }
+      if (notification) {
+        notification.send();
+      }
     });
   });
 
